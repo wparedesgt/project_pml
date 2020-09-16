@@ -1,0 +1,333 @@
+---
+title: "Final Project Practical Machine Learning"
+author: "William Paredes"
+date: "15/9/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Background
+
+With devices like the Jawbone Up, Nike FuelBand, and Fitbit, it is now possible to collect a large amount of personal activity data relatively inexpensively. These types of devices are part of quantified self-movement: a group of enthusiasts who regularly take action on themselves to improve their health, to find patterns in their behavior or because they are fanatics of technology.
+
+One thing that people do on a regular basis is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
+
+In this project, your goal will be to use accelerometer data on the belt, forearm, arm, and dumbbell from 6 participants.
+
+They were asked to perform correctly and incorrectly barbell lifts in 5 different ways. More information is available on the website here: http://groupware.les.inf.puc-rio.br/har (see section on the weightlifting exercise dataset).
+
+
+### Loading Libraries
+
+* library(tidyverse)
+* library(caret)
+* library(corrplot)
+* library(rpart)
+* library(reshape2)
+* library(ROCR)
+* library(rattle)
+
+```{r include=FALSE}
+library(tidyverse)
+library(caret)
+library(corrplot)
+library(rpart)
+library(reshape2)
+library(ROCR)
+library(rattle)
+```
+
+### Loading Data
+
+```{r}
+training <- read.csv("training.csv", header = TRUE)
+testing <- read.csv("testing.csv", header = TRUE)
+```
+
+### Explore and Cleaning
+
+```{r}
+dim(training)  #19622   161
+dim(testing)   #20 161
+```
+
+#### As shown below there are 19622 observations and 161 variables in the Training dataset
+
+### Transform to factor
+
+#### Because it is a categorical prediction
+```{r}
+training$classe <- as.factor(training$classe)
+```
+
+#### Clean the data of the columns that have NA and do not work
+
+```{r}
+training$X.1 <- NULL
+testing$X.1 <- NULL
+
+training <- training[,colSums(is.na(training)) == 0]
+testing <- testing[,colSums(is.na(testing)) == 0]
+```
+
+
+#### The firts 7 columns are useless
+
+```{r}
+training[,c(1:7)] <- NULL
+testing[,c(1:7)] <- NULL
+```
+
+
+#### Create a test partition in the training one since the test partition is very small and I can fall into an overfitting.
+
+```{r}
+index <- createDataPartition(training$classe, times = 1, p = 0.7, list = FALSE)
+
+training_wp <-  training[index,]
+testing_wp <- training[-index,]
+```
+
+#### Delete zerovar function caret package
+
+
+```{r}
+zerovar_wp <- nearZeroVar(training_wp)
+
+training_wp <- training_wp[, -zerovar_wp]
+testing_wp <- testing_wp[, -zerovar_wp]
+```
+
+
+#### Finding correlations in the data
+
+```{r}
+training_cor <- cor(training_wp[,c(1:52)], method = "pearson")
+```
+
+* round(training_cor, digits = 2)
+
+```{r include=FALSE}
+round(training_cor, digits = 2)
+```
+
+
+```{r}
+training_melted <- melt(training_cor)
+
+get_lower_triangle <- function(cormat) {
+  cormat[upper.tri(cormat)] <- NA
+  return(cormat)
+}
+get_upper_triangle <- function(cormat) {
+  cormat[lower.tri(cormat)] <- NA
+  return(cormat)
+}
+reorder_cormat <- function(cormat){
+  dd <- as.dist((1-cormat)/2)
+  hc <-  hclust(dd)
+  cormat <- cormat[hc$order, hc$order]
+}
+cormat <- reorder_cormat(training_cor)
+cormat_ut <- get_upper_triangle(cormat)
+cormat_ut_melted <- melt(cormat_ut, na.rm = TRUE)
+
+cormat_ut_melted %>% ggplot(aes(Var2, Var1, fill = value)) + 
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab", 
+                       name = "Pearson/Correlation") + theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, size = 12, hjust = 1)) +
+  coord_fixed()
+```
+
+
+#### Find the correlation > 0.80
+
+```{r}
+train_hight_correlation <- findCorrelation(cormat, cutoff = 0.80)
+names(training_wp)[train_hight_correlation]
+
+```
+
+#### Separating highly correlated columns
+
+```{r}
+training_wp_hc <- training_wp[train_hight_correlation]
+training_wp_hc$classe <- training_wp$classe
+
+testing_wp_hc <- testing_wp[train_hight_correlation]
+testing_wp_hc$classe <- testing_wp$classe
+```
+
+## Model Building
+
+To build the predictive model of the project, search online which were the most used algorithms for this type of categorical prediction, of which I chose the following:
+
+1. Random Forest (RF)
+2. Neural Network (NNET)
+3. Latent Dirichlet Allocation (LDA) 
+4. Gradient boosting (GBM)
+5. Decision Trees (RPART)
+
+
+### 1. Random Forest (RF)
+
+```{r}
+fit_rf <- train(classe~., data = training_wp_hc, method = "rf" )
+predict_rf <- predict(fit_rf, testing_wp_hc)
+cm_rf <- confusionMatrix(predict_rf, testing_wp_hc$classe)$overall["Accuracy"]
+
+ggplot(fit_rf, highlight = TRUE)
+```
+
+
+### 2. Neural Network (NNET)
+
+* fit_nnet <- train(classe~., data = training_wp_hc, method = "nnet")
+
+```{r include=FALSE}
+fit_nnet <- train(classe~., data = training_wp_hc, method = "nnet")
+
+```
+
+```{r}
+predict_nnet <- predict(fit_nnet, testing_wp_hc)
+cm_nnet <- confusionMatrix(predict_nnet, testing_wp_hc$classe)$overall["Accuracy"]
+```
+
+
+### 3. Latent Dirichlet Allocation (LDA) 
+
+```{r}
+fit_lda <- train(classe~., data = training_wp_hc, method = "lda")
+predict_lda <- predict(fit_lda, testing_wp_hc)
+cm_lda <- confusionMatrix(predict_lda, testing_wp_hc$classe)$overall["Accuracy"]
+```
+
+
+
+### 4. Gradient boosting (GBM)
+
+* fit_gbm <- train(classe~.,data = training_wp_hc, method = "gbm")
+
+```{r include=FALSE}
+fit_gbm <- train(classe~.,data = training_wp_hc, method = "gbm")
+
+```
+
+```{r}
+predict_gbm <- predict(fit_gbm, testing_wp_hc)
+cm_gmb <- confusionMatrix(predict_gbm, testing_wp_hc$classe)$overall["Accuracy"] 
+```
+
+
+
+### 5.  Decision Trees (RPART)
+
+```{r}
+fit_rpart <- train(classe~.,data = training_wp_hc, method = "rpart")
+predict_rpart <- predict(fit_rpart, testing_wp_hc)
+cm_rpart <- confusionMatrix(predict_rpart, testing_wp_hc$classe)$overall["Accuracy"]
+
+
+fancyRpartPlot(fit_rpart$finalModel)
+```
+
+
+## General Accurancy
+
+```{r}
+cm_rf
+cm_nnet
+cm_lda
+cm_gmb
+cm_rpart
+```
+
+
+## Random Forest cross validation
+
+
+```{r}
+control <- trainControl(method = "cv", number = 10, p = .9)
+
+fit_rf_cv <- train(classe~., data = training_wp_hc, method = "rf", trControl = control )
+predict_rf_cv <- predict(fit_rf_cv, testing_wp_hc)
+cm_rf_cv <- confusionMatrix(predict_rf_cv, testing_wp_hc$classe)$overall["Accuracy"]
+cm_rf_cv_total <- confusionMatrix(predict_rf_cv, testing_wp_hc$classe)
+
+ggplot(fit_rf_cv, highlight = TRUE)
+
+```
+
+In the two random forest graphs it is observed that if more than 10 predictor variables are chosen the precision falls, however it is over 95% because we use the 13 variables with the highest correlation.
+
+###  Plotting Confusion Matrix for Random Forest Cross Validation
+
+```{r}
+
+table(testing_wp_hc$classe, predict_rf_cv, dnn = c("Actual", "Predict"))
+
+table <- data.frame(confusionMatrix(predict_rf_cv, testing_wp_hc$classe)$table)
+
+plotTable <- table %>%
+  mutate(tp_fp = ifelse(table$Prediction == table$Reference, "TP", "FP")) %>%
+  group_by(Reference) %>%
+  mutate(prop = Freq/sum(Freq))
+
+ggplot(data = plotTable, mapping = aes(x = Reference, y = Prediction, fill = tp_fp, alpha = prop)) +
+  geom_tile() +
+  geom_text(aes(label = Freq), vjust = .5, fontface  = "bold", alpha = 1) +
+  scale_fill_manual(values = c(TP = "green", FP = "red")) +
+  theme_bw() +
+  xlim(rev(levels(table$Reference)))
+
+```
+
+
+### Combined two close models
+
+```{r}
+
+coincidencia <- predict_rf_cv == predict_gbm
+
+Agreement_accuracy <- confusionMatrix(testing_wp_hc$classe[coincidencia], predict_rf[coincidencia])$overall["Accuracy"]
+
+
+table(Agreement_accuracy) 
+
+```
+
+
+
+#Obtain OOB error in:
+
+The expected out of sample error is:
+
+```{r}
+summary(fit_rf_cv$finalModel$err.rate[,1])[4]
+```
+
+
+
+## Applying the best model to the validation data
+
+
+```{r}
+cm_rf_cv
+```
+
+
+```{r}
+predict_test <- predict(fit_rf_cv, newdata=testing)
+predict_test
+
+```
+
+
+
