@@ -1,0 +1,62 @@
+---
+title: "Face Masks Covid 19"
+author: "William Paredes"
+date: "1/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+<p align="center">
+  <img src="https://github.com/wparedesgt/data_products/blob/master/Semana02/imagen/datosgt_logo.png?raw=true" alt="Sublime's custom image"/>
+</p>
+
+# Masks Guatemala {style="color: darkblue;"}
+
+## COVID 19 pandemic {style="color: black;"}
+
+### Delivered by the government between April 13 to May 30, 2020.
+
+Faced with the COVID19 crisis, the Guatemalan government gave citizens marks, as the first measure in the fight against the pandemic.
+
+## Distribution area
+
+```{r include=FALSE}
+
+library(tidyverse)
+library(leaflet)
+datos_tl <- readRDS("mascarilla_gt.rds")
+
+resumen_mapa <- datos_tl %>% group_by(longitud, latitud) %>% summarise(total = sum(numero_mascarillas))
+
+```
+
+
+<style>
+.html-widget {
+    margin: auto;
+}
+</style>
+
+
+```{r echo=FALSE} 
+
+
+
+resumen_mapa$longitud <- as.numeric(resumen_mapa$longitud)
+resumen_mapa$latitud <- as.numeric(resumen_mapa$latitud)
+
+
+
+resumen_mapa %>% 
+  leaflet() %>%
+  addTiles() %>%
+  setView(lng = -90.2500000, lat = 15.5000000, zoom = 7) %>% 
+  addCircles(lng = ~longitud, lat = ~latitud, weight = 1, radius = ~total * 2)
+```
+
+
+Initially, the central area was the most affected, so government authorities began giving away masks to the population, focusing on the most needy and vulnerable people.
