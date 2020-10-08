@@ -1,0 +1,84 @@
+---
+title: "Assignment Week 03"
+author: "William Paredes"
+date: "8/10/2020"
+output: slidy_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Covid19
+
+The emergency of the pandemic, forced governments to make decisions regarding social distancing, masks and hygiene, Guatemala is one of the countries with a high level of poor people in the city and its surroundings, the government supported citizens by distributing masks for free , trying to reach those most in need, this is a histogram of the distribution by quantity of masks delivered in the first days of the pandemic.
+
+<p align="center">
+<img src="LogoMingob2020.png">
+</p>
+
+## Graph of Distribution Date vrs Cant
+
+```{r include=FALSE}
+library(tidyverse)
+library(plotly)
+
+
+datos <- read_rds("mascarilla_gt.rds")
+
+f1 <- list(
+  family = "Arial, sans-serif",
+  size = 18,
+  color = "darkblue"
+)
+f2 <- list(
+  family = "Old Standard TT, serif",
+  size = 14,
+  color = "black"
+)
+a <- list(
+  title = "No. Mask x Day",
+  titlefont = f1,
+  showticklabels = TRUE,
+  tickangle = 45,
+  tickfont = f2
+  #exponentformat = "E"
+)
+
+b <- list(
+  title = "Date",
+  titlefont = f1,
+  showticklabels = TRUE,
+  tickangle = 45,
+  tickfont = f2
+  #exponentformat = "E"
+)
+
+c <- list(
+  title = "Birthday",
+  titlefont = f1,
+  showticklabels = TRUE,
+  tickangle = 45,
+  tickfont = f2
+  #exponentformat = "E"
+)
+
+
+```
+
+```{r echo=FALSE, warning=FALSE, fig.align = 'center'}
+plot_ly(datos, y = ~fh_ingreso, x = ~numero_mascarillas) %>% add_histogram() %>% layout(title = "Covid19 Face Masks GT",xaxis = a, yaxis = b)
+```
+
+
+## Graph of Distribution BirthDay vrs Date
+
+```{r echo=FALSE, warning=FALSE, fig.align = 'center', message=FALSE}
+plot_ly(datos, x = ~fh_ingreso, y = ~fecha_nacimiento) %>% add_trace() %>% layout(title = "Covid19 Face Masks GT",xaxis = b, yaxis = c)
+```
+
+## END 
+
+<p align="center">
+<img src="LogoMingob2020.png">
+</p>
